@@ -11,7 +11,7 @@
 
   <!-- Favicons -->
   <link href="{% static 'img/favicon.png' %}" rel="icon">
-  <link href="{% static 'img/apple-touch-icon.png" rel="apple-touch-icon">
+  <link href="{% static 'img/apple-touch-icon.png' %}" rel="apple-touch-icon">
 
   <!-- Google Fonts -->
   <link href="https://fonts.gstatic.com" rel="preconnect">
@@ -36,7 +36,9 @@
     {% block content %}{% endblock %}
   {% else %}
     {% block sign %}{% endblock %}
+    {% block error %}{% endblock %}
   {% endif %}
+
   <!-- Vendor JS Files -->
   <script src="{% static 'vendor/apexcharts/apexcharts.min.js' %}"></script>
   <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
