@@ -33,7 +33,6 @@
     }
   ],
   "env": {
-    "PYTHONPATH": "/vercel/path0",
     "DJANGO_SETTINGS_MODULE": "main.settings",
     "ALLOWED_HOSTS": ".vercel.app,.now.sh",
     "SECRET_KEY": "django-insecure-rw1_&e2(7*rm0zo_=s$58vidgpkcu5nibblfm3z17%cf9$uljh",
