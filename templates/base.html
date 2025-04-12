@@ -32,6 +32,19 @@
 </head>
 
 <body>
+  {% csrf_token %}
+  {% if messages %}
+    <div class="alert-message card-body">
+      {% for message in messages %}
+      <div class="alert alert-{% if message.tags == 'success' %}success{% elif message.tags == 'warning' %}warning{% elif message.tags == 'error' %}danger{% elif message.tags == 'info' %}primary{% elif message.tags == 'debug' %}dark{% endif %} alert-dismissible fade show" role="alert">
+        <i class="bi {% if message.tags == 'success' %}bi-check-circle{% elif message.tags == 'warning' %}bi-exclamation-triangle{% elif message.tags == 'error' %}bi-exclamation-octagon{% elif message.tags == 'info' %}bi-star{% elif message.tags == 'debug' %}bi-info-circle{% endif %} me-1"></i>
+          {{message}}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
   {% if user.is_authenticated %}
     {% block content %}{% endblock %}
   {% endif %}

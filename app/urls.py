@@ -11,6 +11,11 @@ urlpatterns = [
     path('signout', views.signout, name='signout'),
     path('dashboard', views.dashboard, name='dashboard'),
     
+    path('products', views.products, name='products'),
+    
+    # Components Index
+    path('components', views.components, name='components'),    
+    
     # Components
     path('components-alerts', views.components_alerts, name='components-alerts'),
     path('components-accordion', views.components_accordion, name='components-accordion'),

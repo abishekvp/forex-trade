@@ -21,7 +21,6 @@ def signup(request):
         username = request.POST["username"]
         email = request.POST["email"]
         password = request.POST["password"]
-        print(username, email, password)
         if username and email and password:
             if not User.objects.filter(username=username).exists() and not User.objects.filter(email=email).exists():
                 user = User.objects.create_user(username, email, password)
@@ -39,7 +38,6 @@ def signin(request):
     if request.method == 'POST':
         username = request.POST["username"]
         password = request.POST["password"]
-        print(username, password)
         if not username or not password:
             messages.error(request, 'Required username and password')
             return redirect('signin')
@@ -67,6 +65,14 @@ def handler404(request, exception):
 
 def handler500(request):
     return render(request, '500.html', status=500)
+
+def products(request):
+    return render(request, 'components-products.html')
+
+# Components
+
+def components(request):
+    return render(request, 'components.html')
 
 def components_alerts(request):
     return render(request, 'components-alerts.html')
