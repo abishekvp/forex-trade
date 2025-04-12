@@ -22,8 +22,7 @@
             <div class="card-body profile-card pt-4 d-flex flex-column align-items-center">
 
               <img src="{% static 'img/profile-img.jpg' %}" alt="Profile" class="rounded-circle">
-              <h2>Kevin Anderson</h2>
-              <h3>Web Designer</h3>
+              <h2 class="text-uppercase">{{request.user.username}}</h2>
               <div class="social-links mt-2">
                 <a href="#" class="twitter"><i class="bi bi-twitter"></i></a>
                 <a href="#" class="facebook"><i class="bi bi-facebook"></i></a>
@@ -248,7 +247,11 @@
                     <div class="text-center">
                       <button type="submit" class="btn btn-primary">Save Changes</button>
                     </div>
-                  </form><!-- End settings Form -->
+                  </form>
+                    <div class="d-flex justify-content-end">
+                    <a href="{% url 'delete-account' %}"><button class="btn btn-danger">Delete Account</button></a>
+                    </div>
+                  <!-- End settings Form -->
 
                 </div>
 

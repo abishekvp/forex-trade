@@ -26,7 +26,7 @@ def signup(request):
                 user = User.objects.create_user(username, email, password)
                 user.save()
                 messages.success(request, 'Account created successfully')
-                return redirect('signin')
+                return signin(request)
             else:
                 messages.error(request, 'Username or Email already exists')
                 return redirect('signin')
@@ -58,6 +58,14 @@ def signin(request):
 
 def signout(request):
     if request.user.is_authenticated: logout(request)
+    return redirect('signin')
+
+def delete_account(request):
+    if request.user.is_authenticated:
+        user_id = request.user.id
+        signout(request)
+        User.objects.filter(id=user_id).delete()
+        messages.debug(request, 'Account has been deleted Successfully!')
     return redirect('signin')
 
 def handler404(request, exception):
