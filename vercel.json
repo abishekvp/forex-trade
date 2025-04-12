@@ -1,8 +1,42 @@
 {
+  "version": 2,
+  "builds": [
+    {
+      "src": "main/wsgi.py",
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "15mb",
+        "runtime": "python3.9"
+      }
+    },
+    {
+      "src": "build_files.sh",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "staticfiles"
+      }
+    }
+  ],
   "routes": [
     {
+      "src": "/static/(.*)",
+      "dest": "/static/$1"
+    },
+    {
+      "src": "/media/(.*)",
+      "dest": "/media/$1"
+    },
+    {
       "src": "/(.*)",
-      "dest": "main/wsgi.py"
+      "dest": "main/wsgi.py",
+      "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     }
-  ]
+  ],
+  "env": {
+    "PYTHONPATH": "/vercel/path0",
+    "DJANGO_SETTINGS_MODULE": "main.settings",
+    "ALLOWED_HOSTS": ".vercel.app,.now.sh",
+    "SECRET_KEY": "django-insecure-rw1_&e2(7*rm0zo_=s$58vidgpkcu5nibblfm3z17%cf9$uljh",
+    "DEBUG": "False"
+  }
 }
