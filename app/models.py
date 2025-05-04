@@ -8,7 +8,7 @@ class Profile(models.Model):
     phone = models.CharField(max_length=15)
     image = models.TextField()
 
-class Products(models.Model):
+class Product(models.Model):
     name = models.CharField(max_length=255)
     value = models.IntegerField()
     amount = models.CharField(max_length=64)
@@ -20,11 +20,55 @@ class Products(models.Model):
     image = models.TextField()
 
 class Image(models.Model):
-    image_binary = models.TextField()
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='product_images')
+    image = models.TextField()
 
-class ImageMap(models.Model):
+class Form(models.Model):
+    form_name = models.CharField(max_length=64, unique=True)
+    form_value = models.CharField(max_length=64, unique=True)
+    form_type = models.CharField(max_length=64)
+    form_description = models.TextField(max_length=512)
+
+class FieldType(models.Model):
+    name = models.CharField(max_length=64, unique=True)
+    field_type = models.CharField(max_length=64, unique=True)
+
+class Property(models.Model):
+    name = models.CharField(max_length=64)
+    tag = models.CharField(max_length=64)
+    value = models.CharField(max_length=64, null=True)
+    type = models.CharField(max_length=64, null=True)
+    description = models.TextField(max_length=512, null=True)
+
+class Field(models.Model):
+    name = models.CharField(max_length=64, unique=True)
+    placeholder = models.CharField(max_length=64, unique=True)
+    FIELD_TYPE_CHOICES = [
+        ('text', 'text'),
+        ('number', 'number'),
+        ('date', 'date'),
+        ('email', 'email'),
+        ('phone', 'phone'),
+    ]
+    type = models.ForeignKey(FieldType, on_delete=models.CASCADE)
+    value = models.CharField(max_length=64, blank=True)
+    input_id = models.CharField(max_length=64)
+    input_class = models.CharField(max_length=64)
+
+class FieldProperty(models.Model):
+    field = models.ForeignKey(Field, on_delete=models.CASCADE)
+    property = models.ForeignKey(Property, on_delete=models.CASCADE)
+
+class FieldsValue(models.Model):
     class Meta:
-        unique_together = ('product', 'image')
-    product = models.ForeignKey(Products, on_delete=models.CASCADE)
-    image = models.ForeignKey(Image, on_delete=models.CASCADE)
+        unique_together = ('field', 'product')
+    field = models.ForeignKey(Field, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    value = models.TextField()
+
+class FormFieldMap(models.Model):
+    class Meta:
+        unique_together = ('form', 'field')
+    form = models.ForeignKey(Form, on_delete=models.CASCADE)
+    field = models.ForeignKey(Field, on_delete=models.CASCADE)
 

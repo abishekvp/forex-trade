@@ -1,0 +1,79 @@
+{% extends 'index.html' %}
+{% load static %}
+{% block main %}
+  <main id="main" class="main">
+
+    <div class="pagetitle" style="justify-content: space-between;display: flex;">
+      <div>
+        <h1>Cards</h1>
+        <nav>
+          <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="index">Home</a></li>
+            <li class="breadcrumb-item">Components</li>
+            <li class="breadcrumb-item active">Cards</li>
+          </ol>
+        </nav>
+      </div>
+    </div><!-- End Page Title -->
+
+    <section class="section">
+      <div class="row align-items-top">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Manage Fields and Forms</h5>
+            <!-- <p>Add lightweight datatables to your project with using the <a href="https://github.com/fiduswriter/Simple-DataTables" target="_blank">Simple DataTables</a> library. Just add <code>.datatable</code> class name to any table you wish to conver to a datatable. Check for <a href="https://fiduswriter.github.io/simple-datatables/demos/" target="_blank">more examples</a>.</p> -->
+            <div class="table">
+                <div class="d-flex justify-content-around">
+                  <p class="card-text"><a data-bs-toggle="modal" data-bs-target="#modalAddField" class="btn btn-primary">Add Field</a></p>
+                  <p class="card-text"><a data-bs-toggle="modal" data-bs-target="#modalAddProperty" class="btn btn-primary">Add Property</a></p>
+                  <p class="card-text"><a data-bs-toggle="modal" data-bs-target="#modalAddInputType" class="btn btn-primary">Add Input Type</a></p>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="row align-items-top">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title">Field Tables</h5>
+            <p>Add lightweight datatables to your project with using the <a href="https://github.com/fiduswriter/Simple-DataTables" target="_blank">Simple DataTables</a> library. Just add <code>.datatable</code> class name to any table you wish to conver to a datatable. Check for <a href="https://fiduswriter.github.io/simple-datatables/demos/" target="_blank">more examples</a>.</p>
+
+            <!-- Table with stripped rows -->
+            <table class="table datatable">
+              <thead>
+                <tr>
+                  <th>Field Name</th>
+                  <th>Field Variable</th>
+                  <th>Field Type</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% if fields %}
+                {% for field in fields %}
+                <tr>
+                  <td>{{field.name}}</td>
+                  <td>{{field.variable}}</td>
+                  <td>{{field.type}}</td>
+                  <td>
+                    <button class="functional-button bi bi-trash text-danger" id="{{field.id}}" onclick="delete_field(this.id)" title="Delete"></button>
+                  </td>
+                </tr>
+                {% endfor %}
+                {% else %}
+                  <tr><td colspan="3" class="text-center">No fields available</td></tr>
+                {% endif %}
+              </tbody>
+            </table>
+            <!-- End Table with stripped rows -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main><!-- End #main -->
+
+{% endblock %}

@@ -1235,8 +1235,15 @@ h6 {
   padding: 20px;
   width: 100%;
   display: flex;
+  flex-wrap: wrap;
+  flex-direction: row;
   justify-content: center;
+  z-index: 999999;
 }
 .alert-message .alert{
   max-width: fit-content;
+}
+
+.functional-button{
+  border: none;
 }

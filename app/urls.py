@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views
+from app import views
 from django.views.decorators.csrf import csrf_exempt
 
 urlpatterns = [
@@ -12,7 +12,24 @@ urlpatterns = [
     path('dashboard', views.dashboard, name='dashboard'),
     path('delete-account', views.delete_account, name='delete-account'),
     
+    path('manage', views.manage, name='manage'),
+    
+    # Products
     path('products', views.products, name='products'),
+    path('add-product', views.add_product),
+    path('add-product-image', views.add_product_image),
+    
+    # Fields
+    path('add-field', csrf_exempt(views.add_field)),
+    path('get-fields', views.get_fields),
+    path('delete-field', views.delete_field),
+    
+    # Property
+    path('add-property', views.add_property),
+    path('delete-property', views.delete_property),
+    
+    # Input Type
+    path('add-input-type', views.add_input_type),
     
     # Components Index
     path('components', views.components, name='components'),    

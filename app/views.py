@@ -1,9 +1,14 @@
-
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.http import JsonResponse
+from app import constants as const
+from app.models import *
+from django.db.models import Q
+from django import forms
+import json
+
 
 def index(request):
     if not request.user.is_authenticated:
@@ -56,6 +61,15 @@ def signin(request):
             messages.error(request, 'Invalid credentials Please try again')
     return render(request,'signin.html')
 
+def add_product_image(request):
+    product_image = request.FILES.get('product-image')
+    if product_image:
+        binary_image = product_image.read()
+        print(binary_image)
+        return JsonResponse({'status_code': 200, 'message': 'Image converted to binary successfully'})
+    else:
+        return JsonResponse({'status_code': 400, 'message': 'No image file provided'})
+
 def signout(request):
     if request.user.is_authenticated: logout(request)
     return redirect('signin')
@@ -74,8 +88,126 @@ def handler404(request, exception):
 def handler500(request):
     return render(request, '500.html', status=500)
 
+# add products
 def products(request):
-    return render(request, 'components-products.html')
+    fields = list(Field.objects.all().values())
+    for field in fields:
+        field_properties = FieldProperty.objects.filter(field_id=field.get('id'))
+        properties = list()
+        for field_property in field_properties:
+            property = Property.objects.filter(id=field_property.property_id).values()
+            properties.append(property[0])
+        field['properties'] = properties
+    print(fields)
+    return render(request, 'components-products.html', {'fields': fields})
+
+def add_product(request):
+    return JsonResponse({'status_code': 200})
+
+def manage(request):
+    fields = Field.objects.all()
+    field_types = FieldType.objects.all()
+    properties = Property.objects.all()
+    return render(request, 'components-manage.html', {'fields': fields, 'field_types': field_types, 'properties': properties})
+
+# Fields
+def add_field(request):
+    data = json.loads(request.POST.get('data', '{}'))
+    fields = dict()
+    for field in data.get('field'):
+        for key, value in field.items():
+            fields[key] = value
+    
+    for label in data.get('label'):
+        for key, value in label.items():
+            fields[key] = value
+    
+    field = Field.objects.create(
+        name=fields.get('field-name'),
+        placeholder=fields.get('field-placeholder'),
+        type=FieldType.objects.get(id=fields.get('field-type')),
+        value=fields.get('field-value'),
+        input_id=fields.get('field-id'),
+        input_class=fields.get('field-class')
+    )
+    
+    for property in data.get('property'):
+        for key, value in property.items():
+            field_property = Property.objects.filter(id=key).get()
+            FieldProperty.objects.create(
+                field=field,
+                property=field_property
+            )
+    
+    return JsonResponse({'status_code': 200, 'message': 'Field created successfully'})
+
+def get_fields(request):
+    try:
+        fields = list(Field.objects.all().values())
+        for field in fields:
+            field_properties = FieldProperty.objects.filter(field_id=field.get('id'))
+            properties = list()
+            for field_property in field_properties:
+                property = Property.objects.filter(id=field_property.property_id).values()
+                properties.append(property[0])
+            field['properties'] = properties
+            field['type'] = FieldType.objects.filter(id=field.get('type_id')).values()[0]
+        return JsonResponse({'status_code': 200, 'fields': fields})
+    except Exception as e:
+        return JsonResponse({'status_code': 403, 'message': 'Failed to get fields'})
+
+def delete_field(request):
+    try:
+        field_id = request.POST.get('field-id')
+        field = Field.objects.get(id=field_id)
+        field.delete()
+        messages.success(request, 'Field deleted successfully')
+        return redirect('/manage')
+    except Exception as e:
+        messages.error(request, f'Failed to delete Field! Error: {e}')
+        return redirect('/manage')
+
+# Property
+def add_property(request):
+    try:
+        data = json.loads(request.POST.get('data', '{}'))
+        property_name = str(data.get('property-name')).strip()
+        property_tag = str(data.get('property-tag')).strip()
+        property_value = str(data.get('property-value')).strip()
+        property_type = str(data.get('property-type')).strip()
+        property_description = str(data.get('property-description')).strip()
+        Property.objects.create(
+            name=property_name,
+            tag = property_tag,
+            value=property_value,
+            type=property_type,
+            description=property_description
+        )
+        return JsonResponse({'status_code': 200, 'message': 'Property created successfully'})
+    except Exception as e:
+        return JsonResponse({'status_code': 403, 'message': f'Failed to Create Property! Error: {e}'})
+
+def delete_property(request):
+    try:
+        property_id = request.POST.get('property-id')
+        # field_property = FieldProperty.objects.get(id=property_id)
+        # field_property.delete()
+        messages.success(request, 'Property deleted successfully')
+        return redirect('/manage')
+    except Exception as e:
+        messages.error(request, f'Failed to delete Property! Error: {e}')
+        return redirect('/manage')
+
+def add_input_type(request):
+    try:
+        data = json.loads(request.POST.get('data', '{}'))
+        name = str(data.get('input-type-name')).strip()
+        input_type = str(data.get('input-type-value')).strip()
+        print(name, input_type)
+        FieldType.objects.create(name=name, field_type=input_type)
+        return JsonResponse({'status_code': 200, 'message': 'Input Type created successfully'})
+    except Exception as e:
+        return JsonResponse({'status_code': 403, 'message': f'Failed to create Input Type! Error: {e}'})
 
 # Components
 

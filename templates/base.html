@@ -45,13 +45,204 @@
     </div>
   {% endif %}
 
+  <div id="notify-alert-message" class="alert-message card-body d-none">
+    <div class="alert alert-{% if message.tags == 'success' %}success{% elif message.tags == 'warning' %}warning{% elif message.tags == 'error' %}danger{% elif message.tags == 'info' %}info{% elif message.tags == 'debug' %}dark{% endif %} alert-dismissible fade show" role="alert">
+      <i class="bi {% if message.tags == 'success' %}bi-check-circle{% elif message.tags == 'warning' %}bi-exclamation-triangle{% elif message.tags == 'error' %}bi-exclamation-octagon{% elif message.tags == 'info' %}bi-star{% elif message.tags == 'debug' %}bi-info-circle{% endif %} me-1"></i>
+        <span id="notify-message"></span>
+      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+  </div>
+
   {% if user.is_authenticated %}
     {% block content %}{% endblock %}
+    <div class="modal fade" id="modalAddProduct" tabindex="-1">
+      <div class="modal-dialog modal-dialog-scrollable">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Add Product</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="card">
+              <div class="card-body">
+                <h5 class="card-title">Fields are Optional except Name & Value</h5>
+                <!-- No Labels Form -->
+                <div class="row g-3" id="add-product-fields"></div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary"data-bs-dismiss="modal" onclick="add_product()">Add</button>
+          </div>
+        </div>
+      </div>
+    </div><!-- End Modal Dialog Scrollable-->
+
+    <div class="modal fade" id="modalAddField" tabindex="-1">
+      <div class="modal-dialog modal-dialog-scrollable modal-xl">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Add Field</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="card">
+              <div class="card-body">
+                <h5 class="card-title">Fields are added to product</h5>
+  
+                <!-- No Labels Form -->
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <input type="text" name="field" id="field-name" class="form-control" placeholder="Field Name">
+                  </div>
+                  <div class="col-md-6">
+                    <input type="text" name="field" id="field-placeholder" class="form-control" placeholder="Field Placeholder">
+                  </div>
+                  <div class="col-md-6">
+                    <input type="text" name="field" id="field-id" class="form-control" placeholder="Field ID">
+                  </div>
+                  <div class="col-md-6">
+                    <input type="text" name="field" id="field-class" class="form-control" placeholder="Field Class">
+                  </div>
+                  <div class="col-md-6">
+                    <input type="text" name="field" id="field-value" class="form-control" placeholder="Field Value">
+                  </div>
+                  {% if field_types %}
+                  <div class="col-md-6">
+                    <select name="field" id="field-type" class="form-select">
+                      <option disabled selected>Field Type</option>
+                      {% for field in field_types %}
+                      <option value="{{field.id}}">{{field.name}}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  {% endif %}
+                  <div class="d-flex justify-content-around align-items-center col-md-12">
+                    <div>
+                      <h5 class="card-title">Label</h5>
+                      <div class="col-md-12">
+                        <input type="text" name="label" id="field-label" class="form-control" placeholder="Field Label Name">
+                      </div>
+                      <div class="col-sm-10">
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="label" id="pre-label" value="pre-label" checked>
+                          <label class="form-check-label" for="label">
+                            Pre Label
+                          </label>
+                        </div>
+                        <div class="form-check">
+                          <input class="form-check-input" type="radio" name="label" id="post-label" value="post-label">
+                          <label class="form-check-label" for="label">
+                            Post Label
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      {% if properties %}
+                      <h5 class="card-title">Input tag properties</h5>
+                      {% for property in properties %}
+                      <div class="form-check">
+                        <input type="checkbox" name="property" id="{{property.id}}" class="form-check-input" >
+                        <label for="{{property.id}}" class="form-check-label">
+                          {{property.name}}{% if property.tag %} - {{property.tag}}{% endif %}{% if property.value %} - {{property.value}}{% endif %}{% if property.type %} - {{property.type}}{% endif %}{% if property.description %} - {{property.description}}{% endif %}
+                        </label>
+                      </div>
+                      {% endfor %}
+                      {% endif %}
+                    </div>
+                  </div>
+                </div><!-- End No Labels Form -->
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="add_field()">Add</button>
+          </div>
+        </div>
+      </div>
+    </div><!-- End Modal Dialog Scrollable-->
+
+    <div class="modal fade" id="modalAddProperty" tabindex="-1">
+      <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Add Property</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="card">
+              <div class="card-body">
+                <h5 class="card-title">Property are added to product</h5>
+                <!-- No Labels Form -->
+                <div class="row g-3 d-flex justify-content-around">
+                  <div class="col-md-3">
+                    <input type="text" name="property-name" id="property-name" class="form-control" placeholder="Property Name">
+                  </div>
+                  <div class="col-md-3">
+                    <input type="text" name="property-tag" id="property-tag" class="form-control" placeholder="Property Tag">
+                  </div>
+                  <div class="col-md-3">
+                    <input type="text" name="property-value" id="property-value" class="form-control" placeholder="Property Value">
+                  </div>
+                  <div class="col-md-3">
+                    <input type="text" name="property-type" id="property-type" class="form-control" placeholder="Property Type">
+                  </div>
+                  <div class="col-md-9">
+                    <textarea name="property-description" id="property-description" class="form-control" placeholder="Property Description"></textarea>
+                  </div>
+                </div><!-- End No Labels Form -->
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="add_property()">Add</button>
+          </div>
+        </div>
+      </div>
+    </div><!-- End Modal Dialog Scrollable-->
+
+    <div class="modal fade" id="modalAddInputType" tabindex="-1">
+      <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Add Input Type</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <div class="card">
+              <div class="card-body">
+                <h5 class="card-title">Input Type are added to product</h5>
+                <!-- No Labels Form -->
+                <div class="row g-3 d-flex justify-content-around">
+                  <div class="col-md-4">
+                    <input type="text" name="input-type-name" id="input-type-name" class="form-control" placeholder="Input Type Name">
+                  </div>
+                  <div class="col-md-4">
+                    <input type="text" name="input-type-value" id="input-type-value" class="form-control" placeholder="Input Type Value">
+                  </div>
+                </div><!-- End No Labels Form -->
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="add_input_type()">Add</button>
+          </div>
+        </div>
+      </div>
+    </div><!-- End Modal Dialog Scrollable-->
   {% endif %}
   {% block sign %}{% endblock %}
   {% block error %}{% endblock %}
 
   <!-- Vendor JS Files -->
+  <script src="{% static 'vendor/function/jquery.min.js' %}"></script>
+  <script src="{% static 'vendor/function/ajax.min.js' %}"></script>
+
   <script src="{% static 'vendor/apexcharts/apexcharts.min.js' %}"></script>
   <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
   <script src="{% static 'vendor/chart.js/chart.umd.js' %}"></script>
@@ -63,7 +254,8 @@
 
   <!-- Template Main JS File -->
   <script src="{% static 'js/main.js' %}"></script>
-
+  <!-- Functional JS -->
+  <script src="{% static 'js/function.js' %}"></script>
 </body>
 
 </html>

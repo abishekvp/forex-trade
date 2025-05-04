@@ -11,9 +11,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-rw1_&e2(7*rm0zo_=s$58vidgpkcu5nibblfm3z17%cf9$uljh'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1', '.vercel.app']
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -59,7 +59,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'main.wsgi.app'
+WSGI_APPLICATION = 'main.wsgi.application'
 
 
 # Database
@@ -115,3 +115,5 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 Admin_Username = 'admin'
 Admin_Password = 'admin'
+
+# python manage.py createsuperuser --username admin --email abirajvp@gmail.com --noinput && python manage.py shell -c "from django.contrib.auth.models import User; u=User.objects.get(username='admin'); u.set_password('admin'); u.save()"
