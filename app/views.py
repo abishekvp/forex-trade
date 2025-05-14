@@ -2,6 +2,7 @@ from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from django.contrib.auth.models import User
+from django.contrib.auth.models import Group
 from django.http import JsonResponse
 from app import constants as const
 from app.models import *
@@ -21,6 +22,18 @@ def dashboard(request):
     else:
         return redirect('signin')
 
+def get_role(user):
+    try:
+        role = user.groups.all()[0].name
+        role = role.lower()
+        if role:
+            return role
+        else:
+            return None
+    except Exception as e:
+        print(e)
+        return None
+
 def signup(request):
     if request.method == 'POST':
         username = request.POST["username"]
@@ -29,12 +42,15 @@ def signup(request):
         if username and email and password:
             if not User.objects.filter(username=username).exists() and not User.objects.filter(email=email).exists():
                 user = User.objects.create_user(username, email, password)
+                authenticate(request, username=username, password=password)
+                group = Group.objects.filter(name='client').first()
+                user.groups.add(group)
                 user.save()
                 messages.success(request, 'Account created successfully')
                 return signin(request)
             else:
                 messages.error(request, 'Username or Email already exists')
-                return redirect('signin')
+                return redirect('signup')
         else:
             messages.error(request, 'Please fill all the fields to create an account')
     return render(request,'signup.html')
@@ -55,8 +71,13 @@ def signin(request):
                 return redirect('signin')
         user = authenticate(request, username=username, password=password)
         if user:
+            role = get_role(user)
+            request.session['user_role'] = role
+            if not role:
+                messages.error(request, 'User unable to signin')
+                return redirect('/signin')
             login(request, user)
-            return redirect('dashboard')
+            return redirect(role)
         else:
             messages.error(request, 'Invalid credentials Please try again')
     return render(request,'signin.html')
