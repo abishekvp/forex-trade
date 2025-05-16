@@ -24,8 +24,16 @@ def category(request):
             product.image = None
     return render(request, 'client/category.html', {'products': products})
 
-def single_product(request):
-    return render(request, 'client/single-product.html')
+def single_product(request, product_id=None):
+    if not product_id:
+        product = app_models.Product.objects.first()
+    else:
+        product = app_models.Product.objects.get(id=product_id)
+    images = app_models.Image.objects.filter(product=product)
+    for image in images:
+        image.image = f"data:image/{image.extension};base64," + base64.b64encode(image.image).decode('utf-8')
+    product.images = images
+    return render(request, 'client/single-product.html', {'product': product})
 
 def checkout(request):
     return render(request, 'client/checkout.html')
@@ -33,6 +41,8 @@ def checkout(request):
 def add_cart(request):
     if request.method == 'POST':
         product_id = request.POST.get('product_id')
+        if client_models.Cart.objects.filter(user=request.user, product_id=product_id).exists():
+            return JsonResponse({'status': 403, 'message': 'Product already in cart'})
         client_models.Cart.objects.create(
             user=request.user,
             product_id=product_id,
