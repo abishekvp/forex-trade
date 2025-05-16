@@ -1,86 +1,116 @@
+from typing import Optional, Dict, Any, List
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
-from django.contrib.auth.models import User
-from django.contrib.auth.models import Group
-from django.http import JsonResponse
+from django.contrib.auth.models import User, Group
+from django.http import JsonResponse, HttpRequest, HttpResponse
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_http_methods
+from django.core.exceptions import ObjectDoesNotExist
 from app import constants as const
-from app.models import *
+from app.models import Field, FieldProperty, Property, FieldType, Image, Product, Category
 from django.db.models import Q
-from django import forms
 import json
+import base64
+
+def requires_group(group_name):
+    """
+    Decorator that checks if a user belongs to a specific group.
+    Usage: @requires_group('admin')
+    """
+    def decorator(view_func):
+        @login_required
+        def wrapper(request, *args, **kwargs):
+            user_group = get_role(request.user)
+            if not user_group or user_group != group_name.lower():
+                messages.error(request, f'Access denied. {group_name} privileges required.')
+                signout(request)
+                return redirect('/signin')
+            return view_func(request, *args, **kwargs)
+        return wrapper
+    return decorator
 
 
-def index(request):
-    if not request.user.is_authenticated:
-        return redirect('/signin')
-    return render(request, 'home.html')
 
-def dashboard(request):
-    if request.user.is_authenticated:
-        return render(request, 'home.html')
-    else:
-        return redirect('signin')
-
-def get_role(user):
+def get_role(user: User) -> Optional[str]:
     try:
-        role = user.groups.all()[0].name
-        role = role.lower()
-        if role:
-            return role
-        else:
-            return None
+        role = user.groups.first()
+        return role.name.lower() if role else None
     except Exception as e:
-        print(e)
+        print(f"Error getting user role: {e}")
         return None
 
-def signup(request):
-    if request.method == 'POST':
-        username = request.POST["username"]
-        email = request.POST["email"]
-        password = request.POST["password"]
-        if username and email and password:
-            if not User.objects.filter(username=username).exists() and not User.objects.filter(email=email).exists():
-                user = User.objects.create_user(username, email, password)
-                authenticate(request, username=username, password=password)
-                group = Group.objects.filter(name='client').first()
-                user.groups.add(group)
-                user.save()
-                messages.success(request, 'Account created successfully')
-                return signin(request)
-            else:
-                messages.error(request, 'Username or Email already exists')
-                return redirect('signup')
-        else:
-            messages.error(request, 'Please fill all the fields to create an account')
-    return render(request,'signup.html')
+@login_required
+@requires_group('admin')
+def index(request: HttpRequest) -> HttpResponse:
+    return render(request, 'home.html')
 
-def signin(request):
+@login_required
+@requires_group('admin')
+def dashboard(request: HttpRequest) -> HttpResponse:
+    return render(request, 'home.html')
+
+@require_http_methods(["GET", "POST"])
+def signup(request: HttpRequest) -> HttpResponse:
     if request.method == 'POST':
-        username = request.POST["username"]
-        password = request.POST["password"]
-        if not username or not password:
+        username = request.POST.get("username")
+        email = request.POST.get("email")
+        password = request.POST.get("password")
+        
+        if not all([username, email, password]):
+            messages.error(request, 'Please fill all the fields to create an account')
+            return redirect('signup')
+            
+        if User.objects.filter(Q(username=username) | Q(email=email)).exists():
+            messages.error(request, 'Username or Email already exists')
+            return redirect('signup')
+            
+        try:
+            user = User.objects.create_user(username, email, password)
+            group = Group.objects.get_or_create(name='admin')[0]
+            user.groups.add(group)
+            authenticate(request, username=username, password=password)
+            messages.success(request, 'Account created successfully')
+            return redirect('signin')
+        except Exception as e:
+            messages.error(request, f'Error creating account: {e}')
+            return redirect('signup')
+            
+    return render(request, 'signup.html')
+
+@require_http_methods(["GET", "POST"])
+def signin(request: HttpRequest) -> HttpResponse:
+    if request.method == 'POST':
+        username = request.POST.get("username")
+        password = request.POST.get("password")
+        
+        if not all([username, password]):
             messages.error(request, 'Required username and password')
             return redirect('signin')
-        if '@' in username:
-            try:
+            
+        try:
+            if '@' in username:
                 user = User.objects.get(email=username)
                 username = user.username
-            except User.DoesNotExist:
-                messages.error(request, 'Invalid credentials Please try again')
-                return redirect('signin')
+        except User.DoesNotExist:
+            messages.error(request, 'Invalid credentials')
+            return redirect('signin')
+            
         user = authenticate(request, username=username, password=password)
-        if user:
-            role = get_role(user)
-            request.session['user_role'] = role
-            if not role:
-                messages.error(request, 'User unable to signin')
-                return redirect('/signin')
-            login(request, user)
-            return redirect(role)
-        else:
-            messages.error(request, 'Invalid credentials Please try again')
-    return render(request,'signin.html')
+        if not user:
+            messages.error(request, 'Invalid credentials')
+            return redirect('signin')
+            
+        role = get_role(user)
+        if not role:
+            messages.error(request, 'User unable to signin')
+            return redirect('signin')
+            
+        login(request, user)
+        request.session['user_role'] = role
+        return redirect(role)
+        
+    return render(request, 'signin.html')
 
 def add_product_image(request):
     product_image = request.FILES.get('product-image')
@@ -91,16 +121,17 @@ def add_product_image(request):
     else:
         return JsonResponse({'status_code': 400, 'message': 'No image file provided'})
 
-def signout(request):
-    if request.user.is_authenticated: logout(request)
+@login_required
+def signout(request: HttpRequest) -> HttpResponse:
+    logout(request)
     return redirect('signin')
 
-def delete_account(request):
-    if request.user.is_authenticated:
-        user_id = request.user.id
-        signout(request)
-        User.objects.filter(id=user_id).delete()
-        messages.debug(request, 'Account has been deleted Successfully!')
+@login_required
+def delete_account(request: HttpRequest) -> HttpResponse:
+    user_id = request.user.id
+    logout(request)
+    User.objects.filter(id=user_id).delete()
+    messages.success(request, 'Account has been deleted Successfully!')
     return redirect('signin')
 
 def handler404(request, exception):
@@ -110,220 +141,421 @@ def handler500(request):
     return render(request, '500.html', status=500)
 
 # add products
-def products(request):
-    fields = list(Field.objects.all().values())
-    for field in fields:
-        field_properties = FieldProperty.objects.filter(field_id=field.get('id'))
-        properties = list()
-        for field_property in field_properties:
-            property = Property.objects.filter(id=field_property.property_id).values()
-            properties.append(property[0])
-        field['properties'] = properties
-    print(fields)
-    return render(request, 'components-products.html', {'fields': fields})
+@login_required
+@requires_group('admin')
+def products(request: HttpRequest) -> HttpResponse:
+    try:
+        products = Product.objects.all()
+        fields = Field.objects.all()
+        for product in products:
+            images = Image.objects.filter(product=product)
+            product.images = list()
+            for image in images:
+                image_data = f"data:image/{image.extension};base64," + base64.b64encode(image.image).decode('utf-8')
+                product.images.append({
+                    'name': image.name,
+                    'image': image_data
+                })
+        return render(request, 'components-products.html', {'products': products, 'fields': fields, 'categories': Category.objects.all()})
+    except Exception as e:
+        messages.error(request, f'Error loading products: {e}')
+        return redirect('dashboard')
 
-def add_product(request):
-    return JsonResponse({'status_code': 200})
+@login_required
+@requires_group('admin')
+@require_http_methods(["POST"])
+def add_product(request: HttpRequest) -> HttpResponse:
+    try:
+        product_image = request.FILES.get('product-image')
+        rating = request.POST.get('product-rating')
+        if rating:
+            try:
+                rating = float(rating)
+                if rating < 0 or rating > 5:
+                    messages.error(request, 'Rating must be between 0 and 5')
+                    return redirect('products')
+            except ValueError:
+                messages.error(request, 'Invalid rating value')
+                return redirect('products')
+        product = Product.objects.create(
+            name=request.POST.get('product-name'),
+            description=request.POST.get('product-description'),
+            category=Category.objects.get(id=request.POST.get('product-category')),
+            value=request.POST.get('product-value'),
+            price=request.POST.get('product-price'),
+            rating=rating,
+            version=request.POST.get('product-version'),
+            notes=request.POST.get('product-notes') 
+        )
+        if product_image:
+            Image.objects.create(
+                product=product,
+                name=product_image.name,
+                image=product_image.read(),
+                extension=product_image.name.split('.')[-1]
+            )
+        messages.success(request, 'Product created successfully')
+    except Exception as e:
+        messages.error(request, f'Failed to create product: {e}')
+    url = request.POST.get('form-location-url')
+    return redirect(url) if url else redirect('products')
 
-def manage(request):
-    fields = Field.objects.all()
-    field_types = FieldType.objects.all()
-    properties = Property.objects.all()
-    return render(request, 'components-manage.html', {'fields': fields, 'field_types': field_types, 'properties': properties})
+@login_required
+@requires_group('admin')
+@require_http_methods(["GET", "POST"])
+def product(request: HttpRequest, product_id: int) -> HttpResponse:
+    try:
+        product = Product.objects.get(id=product_id)
+        image = Image.objects.filter(product=product).first()
+        if image:
+            image.image = f"data:image/{image.extension};base64," + base64.b64encode(image.image).decode('utf-8')
+        else:
+            image = None
+        return render(request, 'components-product.html', {'product': product, 'image': image, 'categories': Category.objects.all()})
+    except ObjectDoesNotExist:
+        messages.error(request, 'Product not found')
+        return redirect('products')
+
+@login_required
+@requires_group('admin')
+@require_http_methods(["POST"])
+def edit(request: HttpRequest, product_id: int) -> HttpResponse:
+    try:
+        product = Product.objects.get(id=product_id)
+        product.name = request.POST.get('product-name')
+        product.description = request.POST.get('product-description')
+        if 'product-category' in request.POST:
+            product.category = Category.objects.get(id=request.POST.get('product-category'))
+        product.value = request.POST.get('product-value')
+        product.price = request.POST.get('product-price')
+        product.rating = request.POST.get('product-rating')
+        product.version = request.POST.get('product-version')
+        product.notes = request.POST.get('product-notes')
+        product.save()
+        
+        if request.FILES.get('product-image'):
+            image = Image.objects.filter(product=product).first()
+            if image:
+                image.image = request.FILES['product-image'].read()
+                image.save()
+            else:
+                Image.objects.create(
+                    product=product,
+                    name=request.FILES['product-image'].name,
+                    image=request.FILES['product-image'].read(),
+                    extension=request.FILES['product-image'].name.split('.')[-1]
+                )
+                
+        messages.success(request, 'Product updated successfully')
+    except Exception as e:
+        messages.error(request, f'Failed to update product: {e}')
+    return redirect(f'/product/{product_id}')
+
+@login_required
+@requires_group('admin')
+@require_http_methods(["GET"])
+def delete(request: HttpRequest, product_id: int) -> HttpResponse:
+    try:
+        product = Product.objects.get(id=product_id)
+        product.delete()
+        messages.success(request, 'Product deleted successfully')
+    except ObjectDoesNotExist:
+        messages.error(request, 'Product not found')
+    return redirect('products')
+    
+@login_required
+@requires_group('admin')
+@require_http_methods(["POST"])
+def add_category(request: HttpRequest) -> HttpResponse:
+    try:
+        category = Category.objects.create(
+            name=request.POST.get('category-name'),
+            description=request.POST.get('category-description')
+        )
+        url = request.POST.get('form-location-url')
+        messages.success(request, 'Category created successfully')
+        if url:
+            return redirect(url)
+        return redirect('products')
+    except Exception as e:
+        messages.error(request, f'Failed to create category: {e}')
+        return redirect('products')
+
+@login_required
+@requires_group('admin')
+def manage(request: HttpRequest) -> HttpResponse:
+    context = {
+        'fields': Field.objects.all(),
+        'field_types': FieldType.objects.all(),
+        'properties': Property.objects.all()
+    }
+    return render(request, 'components-manage.html', context)
 
 # Fields
-def add_field(request):
-    data = json.loads(request.POST.get('data', '{}'))
-    fields = dict()
-    for field in data.get('field'):
-        for key, value in field.items():
-            fields[key] = value
-    
-    for label in data.get('label'):
-        for key, value in label.items():
-            fields[key] = value
-    
-    field = Field.objects.create(
-        name=fields.get('field-name'),
-        placeholder=fields.get('field-placeholder'),
-        type=FieldType.objects.get(id=fields.get('field-type')),
-        value=fields.get('field-value'),
-        input_id=fields.get('field-id'),
-        input_class=fields.get('field-class')
-    )
-    
-    for property in data.get('property'):
-        for key, value in property.items():
-            field_property = Property.objects.filter(id=key).get()
-            FieldProperty.objects.create(
-                field=field,
-                property=field_property
-            )
-    
-    return JsonResponse({'status_code': 200, 'message': 'Field created successfully'})
-
-def get_fields(request):
-    try:
-        fields = list(Field.objects.all().values())
-        for field in fields:
-            field_properties = FieldProperty.objects.filter(field_id=field.get('id'))
-            properties = list()
-            for field_property in field_properties:
-                property = Property.objects.filter(id=field_property.property_id).values()
-                properties.append(property[0])
-            field['properties'] = properties
-            field['type'] = FieldType.objects.filter(id=field.get('type_id')).values()[0]
-        return JsonResponse({'status_code': 200, 'fields': fields})
-    except Exception as e:
-        return JsonResponse({'status_code': 403, 'message': 'Failed to get fields'})
-
-def delete_field(request):
-    try:
-        field_id = request.POST.get('field-id')
-        field = Field.objects.get(id=field_id)
-        field.delete()
-        messages.success(request, 'Field deleted successfully')
-        return redirect('/manage')
-    except Exception as e:
-        messages.error(request, f'Failed to delete Field! Error: {e}')
-        return redirect('/manage')
-
-# Property
-def add_property(request):
+@login_required
+@requires_group('admin')
+@require_http_methods(["POST"])
+def add_field(request: HttpRequest) -> JsonResponse:
     try:
         data = json.loads(request.POST.get('data', '{}'))
-        property_name = str(data.get('property-name')).strip()
-        property_tag = str(data.get('property-tag')).strip()
-        property_value = str(data.get('property-value')).strip()
-        property_type = str(data.get('property-type')).strip()
-        property_description = str(data.get('property-description')).strip()
+        field_data = {}
+        for field in data.get('field', []):
+            field_data.update(field)
+        for label in data.get('label', []):
+            field_data.update(label)
+
+        field = Field.objects.create(
+            label=field_data.get('field-label'),
+            name=field_data.get('field-name'),
+            placeholder=field_data.get('field-placeholder'),
+            type=FieldType.objects.get(id=field_data.get('field-type')),
+            value=field_data.get('field-value'),
+            input_id=field_data.get('field-id'),
+            input_class=field_data.get('field-class')
+        )
+
+        for property_data in data.get('property', []):
+            for property_id in property_data:
+                FieldProperty.objects.create(
+                    field=field,
+                    property_id=property_id
+                )
+
+        return JsonResponse({'status_code': 200, 'message': 'Field created successfully'})
+    except Exception as e:
+        return JsonResponse({'status_code': 403, 'message': f'Failed to create field: {e}'})
+
+@login_required
+@requires_group('admin')
+def get_fields(request: HttpRequest) -> JsonResponse:
+    try:
+        fields = Field.objects.all().prefetch_related(
+            'fieldproperty_set__property', 
+            'type'
+        ).values()
+        
+        for field in fields:
+            field['properties'] = [
+                prop.property for prop in field.fieldproperty_set.all()
+            ]
+            field['type'] = field.type
+            
+        return JsonResponse({'status_code': 200, 'fields': list(fields)})
+    except Exception as e:
+        return JsonResponse({'status_code': 403, 'message': f'Failed to get fields: {e}'})
+
+@login_required
+@requires_group('admin')
+@require_http_methods(["POST"])
+def delete_field(request: HttpRequest) -> HttpResponse:
+    try:
+        field_id = int(request.POST.get('field-id'))
+        Field.objects.filter(id=field_id).delete()
+        messages.success(request, 'Field deleted successfully')
+    except Exception as e:
+        messages.error(request, f'Failed to delete Field: {e}')
+    return redirect('manage')
+
+# Property
+@login_required
+@requires_group('admin')
+@require_http_methods(["POST"])
+def add_property(request: HttpRequest) -> JsonResponse:
+    try:
+        data = json.loads(request.POST.get('data', '{}'))
         Property.objects.create(
-            name=property_name,
-            tag = property_tag,
-            value=property_value,
-            type=property_type,
-            description=property_description
+            name=str(data.get('property-name')).strip(),
+            tag=str(data.get('property-tag')).strip(),
+            value=str(data.get('property-value')).strip(),
+            type=str(data.get('property-type')).strip(),
+            description=str(data.get('property-description')).strip()
         )
         return JsonResponse({'status_code': 200, 'message': 'Property created successfully'})
     except Exception as e:
-        return JsonResponse({'status_code': 403, 'message': f'Failed to Create Property! Error: {e}'})
+        return JsonResponse({'status_code': 403, 'message': f'Failed to create Property: {e}'})
 
-def delete_property(request):
+@login_required
+@requires_group('admin')
+@require_http_methods(["POST"])
+def delete_property(request: HttpRequest) -> HttpResponse:
     try:
         property_id = request.POST.get('property-id')
-        # field_property = FieldProperty.objects.get(id=property_id)
-        # field_property.delete()
+        Property.objects.filter(id=property_id).delete()
         messages.success(request, 'Property deleted successfully')
-        return redirect('/manage')
     except Exception as e:
-        messages.error(request, f'Failed to delete Property! Error: {e}')
-        return redirect('/manage')
+        messages.error(request, f'Failed to delete Property: {e}')
+    return redirect('manage')
 
-def add_input_type(request):
+@login_required
+@requires_group('admin')
+@require_http_methods(["POST"])
+def add_input_type(request: HttpRequest) -> JsonResponse:
     try:
         data = json.loads(request.POST.get('data', '{}'))
-        name = str(data.get('input-type-name')).strip()
-        input_type = str(data.get('input-type-value')).strip()
-        print(name, input_type)
-        FieldType.objects.create(name=name, field_type=input_type)
+        FieldType.objects.create(
+            name=str(data.get('input-type-name')).strip(),
+            field_type=str(data.get('input-type-value')).strip()
+        )
         return JsonResponse({'status_code': 200, 'message': 'Input Type created successfully'})
     except Exception as e:
-        return JsonResponse({'status_code': 403, 'message': f'Failed to create Input Type! Error: {e}'})
+        return JsonResponse({'status_code': 403, 'message': f'Failed to create Input Type: {e}'})
 
 # Components
 
-def components(request):
+@login_required
+@requires_group('admin')
+def components(request: HttpRequest) -> HttpResponse:
     return render(request, 'components.html')
 
-def components_alerts(request):
+@login_required
+@requires_group('admin')
+def components_alerts(request: HttpRequest) -> HttpResponse:
     return render(request, 'components-alerts.html')
 
-def components_accordion(request):
+@login_required
+@requires_group('admin')
+def components_accordion(request: HttpRequest) -> HttpResponse:
     return render(request, 'components-accordion.html')
 
-def components_badges(request):
+@login_required
+@requires_group('admin')
+def components_badges(request: HttpRequest) -> HttpResponse:
     return render(request, 'components-badges.html')
 
-def components_breadcrumbs(request):
+@login_required
+@requires_group('admin')
+def components_breadcrumbs(request: HttpRequest) -> HttpResponse:
     return render(request, 'components-breadcrumbs.html')
 
-def components_buttons(request):
+@login_required
+@requires_group('admin')
+def components_buttons(request: HttpRequest) -> HttpResponse:
     return render(request, 'components-buttons.html')
 
-def components_cards(request):
+@login_required
+@requires_group('admin')
+def components_cards(request: HttpRequest) -> HttpResponse:
     return render(request, 'components-cards.html')
 
-def components_carousel(request):
+@login_required
+@requires_group('admin')
+def components_carousel(request: HttpRequest) -> HttpResponse:
     return render(request, 'components-carousel.html')
 
-def components_list_group(request):
+@login_required
+@requires_group('admin')
+def components_list_group(request: HttpRequest) -> HttpResponse:
     return render(request, 'components-list-group.html')
 
-def components_modal(request):
+@login_required
+@requires_group('admin')
+def components_modal(request: HttpRequest) -> HttpResponse:
     return render(request, 'components-modal.html')
 
-def components_tabs(request):
+@login_required
+@requires_group('admin')
+def components_tabs(request: HttpRequest) -> HttpResponse:
     return render(request, 'components-tabs.html')
 
-def components_pagination(request):
+@login_required
+@requires_group('admin')
+def components_pagination(request: HttpRequest) -> HttpResponse:
     return render(request, 'components-pagination.html')
 
-def components_progress(request):
+@login_required
+@requires_group('admin')
+def components_progress(request: HttpRequest) -> HttpResponse:
     return render(request, 'components-progress.html')
 
-def components_spinners(request):
+@login_required
+@requires_group('admin')
+def components_spinners(request: HttpRequest) -> HttpResponse:
     return render(request, 'components-spinners.html')
 
-def components_tooltips(request):
+@login_required
+@requires_group('admin')
+def components_tooltips(request: HttpRequest) -> HttpResponse:
     return render(request, 'components-tooltips.html')
 
-def forms_elements(request):
+@login_required
+@requires_group('admin')
+def forms_elements(request: HttpRequest) -> HttpResponse:
     return render(request, 'forms-elements.html')
 
-def forms_layouts(request):
+@login_required
+@requires_group('admin')
+def forms_layouts(request: HttpRequest) -> HttpResponse:
     return render(request, 'forms-layouts.html')
 
-def forms_editors(request):
+@login_required
+@requires_group('admin')
+def forms_editors(request: HttpRequest) -> HttpResponse:
     return render(request, 'forms-editors.html')
 
-def forms_validation(request):
+@login_required
+@requires_group('admin')
+def forms_validation(request: HttpRequest) -> HttpResponse:
     return render(request, 'forms-validation.html')
 
-def tables_general(request):
+@login_required
+@requires_group('admin')
+def tables_general(request: HttpRequest) -> HttpResponse:
     return render(request, 'tables-general.html')
 
-def tables_data(request):
+@login_required
+@requires_group('admin')
+def tables_data(request: HttpRequest) -> HttpResponse:
     return render(request, 'tables-data.html')
 
-def charts_chartjs(request):
+@login_required
+@requires_group('admin')
+def charts_chartjs(request: HttpRequest) -> HttpResponse:
     return render(request, 'charts-chartjs.html')
 
-def charts_apexcharts(request):
+@login_required
+@requires_group('admin')
+def charts_apexcharts(request: HttpRequest) -> HttpResponse:
     return render(request, 'charts-apexcharts.html')
 
-def charts_echarts(request):
+@login_required
+@requires_group('admin')
+def charts_echarts(request: HttpRequest) -> HttpResponse:
     return render(request, 'charts-echarts.html')
 
-def icons_bootstrap(request):
+@login_required
+@requires_group('admin')
+def icons_bootstrap(request: HttpRequest) -> HttpResponse:
     return render(request, 'icons-bootstrap.html')
 
-def icons_remix(request):
+@login_required
+@requires_group('admin')
+def icons_remix(request: HttpRequest) -> HttpResponse:
     return render(request, 'icons-remix.html')
 
-def icons_boxicons(request):
+@login_required
+@requires_group('admin')
+def icons_boxicons(request: HttpRequest) -> HttpResponse:
     return render(request, 'icons-boxicons.html')
 
-def users_profile(request):
+@login_required
+@requires_group('admin')
+def users_profile(request: HttpRequest) -> HttpResponse:
     return render(request, 'users-profile.html')
 
-def pages_faq(request):
+@login_required
+@requires_group('admin')
+def pages_faq(request: HttpRequest) -> HttpResponse:
     return render(request, 'pages-faq.html')
 
-def pages_contact(request):
+@login_required
+@requires_group('admin')
+def pages_contact(request: HttpRequest) -> HttpResponse:
     return render(request, 'pages-contact.html')
 
-def pages_error_404(request):
+def pages_error_404(request: HttpRequest) -> HttpResponse:
     return render(request, '404.html')
 
-def pages_blank(request):
+@login_required
+@requires_group('admin')
+def pages_blank(request: HttpRequest) -> HttpResponse:
     return render(request, 'pages-blank.html')

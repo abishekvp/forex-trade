@@ -1,0 +1,141 @@
+{% extends 'index.html' %}
+{% load static %}
+{% block main %}
+  <main id="main" class="main">
+
+    <div class="pagetitle" style="justify-content: space-between;display: flex;">
+      <div>
+        <h1>Cards</h1>
+        <nav>
+          <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="index">Home</a></li>
+            <li class="breadcrumb-item">Components</li>
+            <li class="breadcrumb-item active">Cards</li>
+          </ol>
+        </nav>
+      </div>
+      <div>
+        <p class="card-text"><a data-bs-toggle="modal" data-bs-target="#modalAddProduct" onclick="get_fields()" class="btn btn-primary">Add Product</a></p>
+      </div>
+    </div><!-- End Page Title -->
+
+    <section class="section">
+      <div class="row align-items-top">
+        <div class="col-lg-4">
+          <div class="card">
+            <div class="card-body">
+              <h5 class="card-title"></h5>
+              <div class="card col-lg-12">
+                <img src="{{image.image}}" class="card-img-top col-lg-6" alt="{{image.name}}">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-8">
+          <div class="card">
+            <div class="card-body">
+              <h5 class="card-title"></h5>
+              <form action="/edit/{{product.id}}" method="POST" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="row mb-5">
+                  <div class="col-sm-12">
+                    <div class="input-group mb-3">
+                      <span class="input-group-text" id="basic-addon1"><i class="bi bi-tag"></i></span>
+                      <input type="text" name="product-name" class="form-control" value="{{product.name}}">
+                    </div>
+
+                    <!-- <div class="input-group mb-3">
+                      <input type="text" class="form-control" value="Recipient's username" aria-label="Recipient's username" aria-describedby="basic-addon2">
+                      <span class="input-group-text" id="basic-addon2">@example.com</span>
+                    </div> -->
+
+                    <!-- <label for="basic-url" class="form-label">Your vanity URL</label>
+                    <div class="input-group mb-3">
+                      <span class="input-group-text" id="basic-addon3">https://example.com/users/</span>
+                      <input type="text" class="form-control" id="basic-url" aria-describedby="basic-addon3">
+                    </div> -->
+
+                    <div class="row mb-3 d-flex justify-content-around">
+                      <div class="col-sm-6">
+                        <div class="input-group mb-3">
+                          <span class="input-group-text">Price ($)</span>
+                          <input type="number" class="form-control" name="product-price" value="{{product.price}}" aria-label="Amount (to the nearest dollar)">
+                          <span class="input-group-text">.00</span>
+                        </div>
+                      </div>
+                      <div class="col-sm-6">
+                        <div class="input-group mb-3">
+                          <span class="input-group-text">Value</span>
+                          <input type="number" class="form-control" name="product-value" value="{{product.value}}" aria-label="Amount (to the nearest dollar)">
+                          <span class="input-group-text">.00</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="form-floating mb-3">
+                      <select class="form-select" name="product-category" id="floatingSelect" aria-label="Floating label select example">
+                        <option value="{{product.category.id}}" selected>{{product.category.name}}</option>
+                        {% for category in categories %}
+                          {% if category.id != product.category.id %}
+                            <option value="{{category.id}}">{{category.name}}</option>
+                          {% endif %}
+                        {% endfor %}
+                      </select>
+                      <label for="floatingSelect">Select Product Category</label>
+                    </div>
+
+                    <div class="row mb-3">
+                      <div class="col-sm-3">
+                        <span class="input-group-text">Product Image</span>
+                      </div>
+                      <div class="col-sm-8">
+                        <input type="file" name="product-image" class="form-control" id="product-image" accept="image/*">
+                      </div>
+                    </div>
+
+                    <!-- <div class="input-group mb-3">
+                      <input type="text" class="form-control" value="Username" aria-label="Username">
+                      <span class="input-group-text">@</span>
+                      <input type="text" class="form-control" value="Server" aria-label="Server">
+                    </div> -->
+
+                    <div class="input-group mb-3">
+                      <span class="input-group-text">Description</span>
+                      <textarea class="form-control" name="product-description" aria-label="With textarea">{{product.description}}</textarea>
+                    </div>
+
+                    <div class="row mb-3 d-flex justify-content-around">
+                      <div class="col-sm-6">
+                        <div class="input-group mb-3">
+                          <span class="input-group-text"><i class="bi bi-star"></i></span>
+                          <input type="number" name="product-rating" class="form-control" value="{{product.rating}}" min="0" max="5" step="0.01">
+                        </div>
+                      </div>
+                      <div class="col-sm-6">
+                        <div class="input-group mb-3">                    
+                            <span class="input-group-text">Version <i class="bi bi-hash" style="color: gray; margin-right: 4px;"></i></span>
+                          <input type="text" name="product-version" class="form-control" value="{{product.version}}" min="0" max="5" step="0.01">
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="input-group mb-3">
+                      <span class="input-group-text">Notes</span>
+                      <textarea class="form-control" name="product-notes" aria-label="With textarea">{{product.notes}}</textarea>
+                    </div>
+
+                    <div class="row mb-3 d-flex justify-content-center">
+                      <div class="col-sm-3">
+                        <button type="submit" class="btn btn-primary">Update</button>
+                        <!-- <input type="submit" class="form-control" value="Update"> -->
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+{% endblock %}

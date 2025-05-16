@@ -8,20 +8,29 @@ class Profile(models.Model):
     phone = models.CharField(max_length=15)
     image = models.TextField()
 
+class Category(models.Model):
+    name = models.CharField(max_length=64, unique=True)
+    description = models.TextField(max_length=512, null=True)
+
 class Product(models.Model):
     name = models.CharField(max_length=255)
-    value = models.IntegerField()
-    amount = models.CharField(max_length=64)
+    value = models.IntegerField(null=True)
+    category = models.ForeignKey(Category, null=True, on_delete=models.CASCADE)
+    price = models.CharField(max_length=64)
     description = models.TextField(max_length=512)
-    rating = models.IntegerField()
+    rating = models.FloatField()
     updated = models.DateField(auto_now_add=True)
     version = models.CharField(max_length=16)
-    notes = models.TextField(max_length=128)
-    image = models.TextField()
+    notes = models.TextField(max_length=128, null=True, blank=True)
+    created = models.DateField(auto_now=True)
 
 class Image(models.Model):
+    class Meta:
+        unique_together = ('product', 'image')
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='product_images')
-    image = models.TextField()
+    name = models.CharField(max_length=64, null=True)
+    image = models.BinaryField()
+    extension = models.CharField(max_length=8, null=True)
 
 class Form(models.Model):
     form_name = models.CharField(max_length=64, unique=True)
@@ -41,8 +50,9 @@ class Property(models.Model):
     description = models.TextField(max_length=512, null=True)
 
 class Field(models.Model):
+    label = models.CharField(max_length=32, null=True)
     name = models.CharField(max_length=64, unique=True)
-    placeholder = models.CharField(max_length=64, unique=True)
+    placeholder = models.CharField(max_length=64)
     FIELD_TYPE_CHOICES = [
         ('text', 'text'),
         ('number', 'number'),

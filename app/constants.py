@@ -19,3 +19,6 @@ FIELD_DICT = {
     'phone': PHONE,
     'email': EMAIL
 }
+
+POST = 'POST'
+GET = 'GET'
